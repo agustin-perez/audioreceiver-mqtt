@@ -18,16 +18,12 @@
 #define phonoPayload 3
 
 #ifndef STASSID
-#define STASSID ""
-#define STAPSK  ""
 #define STAMqttServerAddress ""
 #define STAMqttUserName ""
 #define STAMqttPwd ""
-#define STAMqttClientID  "Technics SA-GX170 test"
+#define STAMqttClientID "Technics SA-GX170 test"
 #endif
 
-const char* ssid = STASSID;
-const char* password = STAPSK;
 const char* mqttServerAddress = STAMqttServerAddress;
 const char* mqttUserName = STAMqttUserName;
 const char* mqttPwd = STAMqttPwd;
@@ -80,16 +76,6 @@ static const char HELLO_PAGE[] PROGMEM = R"(
 
 String strTopic;
 String strPayload;
-
-void wifiSetup() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
-  }
-}
 
 //HARDWARE BUTTONS (OPTOCOUPLERS)
 void hwButtons(int code) {
@@ -233,21 +219,20 @@ void setup() {
   digitalWrite(optoSpeakersB, LOW);
   pinMode(optoPhono, OUTPUT);
   digitalWrite(optoPhono, LOW);
-  wifiSetup();
 
   client.setServer(mqttServerAddress, 1883);
   client.setCallback(mqttCallback);
   digitalWrite(onBoardLED, LOW);
   irsend.begin();
-  Serial.println("Ready");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-
   config.ota = AC_OTA_BUILTIN;      
   portal.config(config);           
   hello.load(HELLO_PAGE);         
   portal.join({ hello });           
   portal.begin();    
+  
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
