@@ -7,12 +7,11 @@
 #include <AutoConnect.h>
 
 //DEFINITIONS
-#define irLed 5 //D1
-#define onBoardLED 2
+#define irLed 5         //D1
+#define onBoardLED 2    //D4
 #define optoSpeakersA 4 //D2
 #define optoSpeakersB 0 //D3
-#define optoPhono 15 //D5
-
+#define optoPhono 15    //D5
 #define speakersAPayload 1
 #define speakersBPayload 2
 #define phonoPayload 3
@@ -21,13 +20,19 @@
 #define STAMqttServerAddress ""
 #define STAMqttUserName ""
 #define STAMqttPwd ""
-#define STAMqttClientID "Technics SA-GX170 test"
+#define STAMqttClientID "Technics SA-GX170"
 #endif
 
 const char* mqttServerAddress = STAMqttServerAddress;
 const char* mqttUserName = STAMqttUserName;
 const char* mqttPwd = STAMqttPwd;
 const char* mqttClientID = STAMqttClientID;
+static const char HELLO_PAGE[] PROGMEM = R"(
+{ "title": "Audio receiver", "uri": "/", "menu": true, "element": [
+    { "name": "caption", "type": "ACText", "value": "<h2>Technics SA-GX170</h2>",  "style": "text-align:center;color:#2f4f4f;padding:10px;" },
+    { "name": "content", "type": "ACText", "value": "ESP8266 management page" } ]
+}
+)";      
 
 //REMOTE CONTROL RAW DATA (PRONTO RAW PROTOCOL)
 
@@ -66,14 +71,6 @@ ESP8266WebServer server;
 AutoConnect       portal(server);   
 AutoConnectConfig config;           
 AutoConnectAux    hello;      
-
-static const char HELLO_PAGE[] PROGMEM = R"(
-{ "title": "Technics SA-GX170", "uri": "/", "menu": true, "element": [
-    { "name": "caption", "type": "ACText", "value": "<h2>Technics SA-GX170</h2>",  "style": "text-align:center;color:#2f4f4f;padding:10px;" },
-    { "name": "content", "type": "ACText", "value": "ESP8266 management page" } ]
-}
-)";      
-
 String strTopic;
 String strPayload;
 
