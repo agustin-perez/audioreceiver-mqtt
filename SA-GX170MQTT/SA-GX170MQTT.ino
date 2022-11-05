@@ -7,21 +7,19 @@
 #include <AutoConnect.h>
 
 //DEFINITIONS
-#define irLed 5         //D1
-#define onBoardLED 2    //D4
-#define optoSpeakersA 4 //D2
-#define optoSpeakersB 0 //D3
-#define optoPhono 15    //D5
+#define powerSensor A0      //A0
+#define irLed 5             //D1
+#define onBoardLED 2        //D4
+#define optoSpeakersA 4     //D2
+#define optoSpeakersB 0     //D3
+#define optoPhono 15        //D8
 #define speakersAPayload 1
 #define speakersBPayload 2
 #define phonoPayload 3
-
-#ifndef STASSID
 #define STAMqttServerAddress ""
 #define STAMqttUserName ""
 #define STAMqttPwd ""
 #define STAMqttClientID "Technics SA-GX170"
-#endif
 
 const char* mqttServerAddress = STAMqttServerAddress;
 const char* mqttUserName = STAMqttUserName;
@@ -68,35 +66,33 @@ WiFiClient espClient;
 IRsend irsend(irLed);
 PubSubClient client(espClient);
 ESP8266WebServer server;                              
-AutoConnect       portal(server);   
+AutoConnect portal(server);   
 AutoConnectConfig config;           
-AutoConnectAux    hello;      
+AutoConnectAux hello;
 String strTopic;
 String strPayload;
+bool powerState=false;
+bool prevPowerState=false;
+unsigned long previousMillis = 0;   
+const long interval = 500;
 
 //HARDWARE BUTTONS (OPTOCOUPLERS)
 void hwButtons(int code) {
   switch (code) {
     case speakersAPayload:
-      Serial.println("Pressing button: Speakers A");
       digitalWrite(optoSpeakersA, HIGH);
       delay(50);
       digitalWrite(optoSpeakersA, LOW);
-      Serial.println("Released button: Speakers A");
       break;
     case speakersBPayload:
-      Serial.println("Pressing button: Speakers B");
       digitalWrite(optoSpeakersB, HIGH);
       delay(50);
       digitalWrite(optoSpeakersB, LOW);
-      Serial.println("Released button: Speakers B");
       break;
     case phonoPayload:
-      Serial.println("Pressing button: phono");
       digitalWrite(optoPhono, HIGH);
       delay(50);
       digitalWrite(optoPhono, LOW);
-      Serial.println("Released button: phono");
       break;
   }
 }
@@ -105,34 +101,27 @@ void hwButtons(int code) {
 void irCommands(int cmnd) {
   switch (cmnd) {
     case 1:
-      Serial.println("Sent signal: Power");
       irsend.sendPronto(powerC, 104);
       break;
     case 2:
-      Serial.println("Sent signal: TV");
       irsend.sendPronto(tvC, 104);
       break;
     case 3:
-      Serial.println("Sent signal: VCR1");
       irsend.sendPronto(vcr1C, 104);
       irsend.sendPronto(tMonC, 104);
       break;
     case 4:
-      Serial.println("Sent signal: TAPE MONITOR");
       irsend.sendPronto(tMonC, 104);
       break;
     case 5:
-      Serial.println("Sent signal: CD");
       irsend.sendPronto(cdC, 104);
       irsend.sendPronto(tMonC, 104);
       break;
     case 6:
-      Serial.println("Sent signal: TUNER");
       irsend.sendPronto(tunerC, 104);
       irsend.sendPronto(tMonC, 104);
       break;
     case 7:
-      Serial.println("Sent signal: MUTE");
       irsend.sendPronto(muteC, 104);
       break;
   }
@@ -143,16 +132,11 @@ void irCommands(int cmnd) {
 void irVolumeCommands(int cmnd, int steps) {
   switch (cmnd) {
     case '1':
-      Serial.println("Sent signal: VOL+");
-      Serial.println("Volume steps: " + (String)steps);
-      Serial.println(steps);
       for (int i = 0; i < steps; i++) {
         irsend.sendPronto(volPlusC, 104);
       }
       break;
     case '2':
-      Serial.println("Sent signalL: VOL-");
-      Serial.println("Volume steps: " + (String)steps);
       for (int i = 0; i < steps; i++) {
         irsend.sendPronto(volMinusC, 104);
       }
@@ -180,43 +164,35 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     char *payloadWFE = &payloadChar[2];
     irVolumeCommands((int)payload[0], atoi(payloadWFE));
   }
-
   digitalWrite(irLed, LOW);
 }
 
 //MQTT RECONNECT
 void mqttReconnect() {
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
     if (client.connect(mqttClientID, mqttUserName, mqttPwd)) {
-      Serial.println("Connected to Home Assistant MQTT Broker");
-      //MQTT SUBSCRIPTIONS
       client.subscribe("avail/technics");
       client.subscribe("cmnd/technics/hwbuttons");
       client.subscribe("cmnd/technics/ir");
       client.subscribe("cmnd/technics/ir/vol");
+      client.subscribe("stat/technics/power");
       client.publish("avail/technics", "Online");
     } else {
-      Serial.print("Failed: ");
-      Serial.print(client.state());
-      Serial.println("Trying again in 5 seconds...");
       delay(5000);
     }
   }
 }
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println("Booting");
   pinMode(onBoardLED, OUTPUT);
-  digitalWrite(onBoardLED, LOW);
   pinMode(optoSpeakersA, OUTPUT);
-  digitalWrite(optoSpeakersA, LOW);
   pinMode(optoSpeakersB, OUTPUT);
-  digitalWrite(optoSpeakersB, LOW);
+  pinMode(powerSensor, INPUT);
   pinMode(optoPhono, OUTPUT);
+  digitalWrite(onBoardLED, LOW);
+  digitalWrite(optoSpeakersA, LOW);
+  digitalWrite(optoSpeakersB, LOW);
   digitalWrite(optoPhono, LOW);
-
   client.setServer(mqttServerAddress, 1883);
   client.setCallback(mqttCallback);
   digitalWrite(onBoardLED, LOW);
@@ -226,10 +202,6 @@ void setup() {
   hello.load(HELLO_PAGE);         
   portal.join({ hello });           
   portal.begin();    
-  
-  Serial.println("Ready");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
 }
 
 void loop() {
@@ -238,4 +210,22 @@ void loop() {
   }
   client.loop();
   portal.handleClient(); 
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    int powerLdr = analogRead(powerSensor);
+    if (powerLdr > 200){
+      powerState=true;     
+    } else {
+      powerState=false;
+    }
+    if (powerState!=prevPowerState){
+       if (powerState){
+        client.publish("stat/technics/power", "on");  
+       } else {
+        client.publish("stat/technics/power", "off");  
+       }
+       prevPowerState=powerState;
+    }
+  }
 }
