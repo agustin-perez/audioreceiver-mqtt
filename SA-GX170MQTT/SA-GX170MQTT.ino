@@ -72,7 +72,6 @@ AutoConnectAux hello;
 String strTopic;
 String strPayload;
 bool powerState=false;
-bool prevPowerState=false;
 unsigned long previousMillis = 0;   
 const long interval = 500;
 
@@ -213,19 +212,17 @@ void loop() {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
+    client.publish("avail/technics", "Online");
     int powerLdr = analogRead(powerSensor);
     if (powerLdr > 200){
       powerState=true;     
     } else {
       powerState=false;
     }
-    if (powerState!=prevPowerState){
-       if (powerState){
-        client.publish("stat/technics/power", "on");  
-       } else {
-        client.publish("stat/technics/power", "off");  
-       }
-       prevPowerState=powerState;
+    if (powerState){
+      client.publish("stat/technics/power", "on");  
+    } else {
+      client.publish("stat/technics/power", "off");  
     }
   }
 }
